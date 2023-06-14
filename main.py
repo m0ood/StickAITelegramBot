@@ -20,7 +20,6 @@ from pathlib import Path
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 from sklearn.linear_model import LinearRegression
-from pmdarima.arima import auto_arima
 from sklearn import neighbors
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import MinMaxScaler
@@ -43,10 +42,9 @@ df = get_dataset(stock)
 def start(message):
     mess = f'Привет <b>{message.from_user.first_name}</b>. Краткая информацию по боту:\n' \
            f'Чтобы задать акцию нужно ввести её тикер. Тикер — краткое название в биржевой информации котируемых инструментов (акций, облигаций, индексов). Например Apple=AAPL\n' \
-           f'Сущесвтуют 4 модели: Linear Regression, K-Nearest Neighbours, Auto ARIMA, Long Short Term Memory (LSTM)\n' \
+           f'Сущесвтуют 4 модели: Linear Regression, K-Nearest Neighbours, Long Short Term Memory (LSTM)\n' \
            f'Linear Regression - это метод анализа данных, который предсказывает ценность неизвестных данных с помощью другого связанного и известного значения данных\n' \
            f'K-Nearest Neighbours - метрический алгоритм для автоматической классификации объектов или регрессии\n' \
-           f'ARIMA - очень популярная техника для моделирования временных рядов. Она описывает корреляцию между точками данных и учитывает разницу значений\n' \
            f'Long Short Term Memory (LSTM) – особая разновидность архитектуры рекуррентных нейронных сетей, способная к обучению долговременным зависимостям\n' \
            f'А ratio с какого момента мы хотим посмотреть'
     bot.send_message(message.chat.id, mess, parse_mode='html')
@@ -70,11 +68,10 @@ def get_user_text(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         LinearRegression = types.KeyboardButton('Linear Regression')
         KNearest = types.KeyboardButton('K-Nearest Neighbours')
-        ARIMA = types.KeyboardButton('Auto ARIMA')
         LSTM = types.KeyboardButton('LSTM')
-        markup.add(LinearRegression, KNearest, ARIMA, LSTM)
+        markup.add(LinearRegression, KNearest, LSTM)
         bot.send_message(message.chat.id, 'Выберите нужную модель', reply_markup=markup)
-    if message.text == 'Linear Regression' or message.text == 'K-Nearest Neighbours' or message.text == 'Auto ARIMA' or message.text == 'LSTM':
+    if message.text == 'Linear Regression' or message.text == 'K-Nearest Neighbours' or message.text == 'LSTM':
         global model
         model = message.text
         bot.send_message(message.chat.id, f'Задана модель {model}', parse_mode='html')
@@ -153,8 +150,6 @@ def get_prediction(message):
             linear_regression_prediction(model, df, ratio, message, stock)
         case 'K-Nearest Neighbours':
             k_nearest_neighbours_predict(model, df, ratio, message, stock)
-        case 'Auto ARIMA':
-            auto_arima_prediction(model, df, ratio, message, stock)
         case 'LSTM':
            lstm_prediction(model, df, ratio, message, stock)
 def linear_regression_prediction(nameModel, df, ratio, message, stock):
@@ -223,39 +218,6 @@ def k_nearest_neighbours_predict(nameModel, df, ratio, message, stock):
     plt.title('Спрогнозированые цены акций с помощью метода K-ближайших соседей', size=20)
     plt.legend(['Модель Обучающие данные', 'Акутальные данные', 'Предсказанные данные'])
     fname = f'./{message.from_user.id}/{nameModel}_{message.from_user.id}_{stock}.png'
-    plt.savefig(fname)
-    sendGraph(fname, message)
-
-def auto_arima_prediction(nameModel, df, ratio, message, stock):
-    shape = df.shape[0]
-    df_new = df
-    data = df_new.sort_index(ascending=True, axis=0)
-    train_set = data[:ceil(shape * 0.75)]
-    valid_set = data[ceil(shape * 0.75):]
-    print('----------------------------------------------------------')
-    print('-----------STOCK PRICE PREDICTION BY AUTO ARIMA-----------')
-    print('----------------------------------------------------------')
-    print('Shape of Training Set', train_set.shape)
-    print('Shape of Validation Set', valid_set.shape)
-    training = train_set['Close']
-    validation = valid_set['Close']
-    model = auto_arima(training, start_p=1, start_q=1, max_p=3, max_q=3, m=12, start_P=0, seasonal=True, d=1, D=1,
-                       trace=True, error_action='ignore', suppress_warnings=True)
-    model.fit(training)
-    forecast = model.predict(n_periods=ceil(floor(df.shape[0] * 0.25)))
-    forecast = pd.DataFrame(forecast, index=valid_set.index, columns=['Prediction'])
-    rms = np.sqrt(np.mean(np.power((np.array(valid_set['Close']) - np.array(forecast['Prediction'])), 2)))
-    print('RMSE value on validation set:', rms)
-    print('-----------------------------------------------------------')
-    print('-----------------------------------------------------------')
-    plt.plot(train_set['Close'])
-    plt.plot(valid_set['Close'])
-    plt.plot(forecast['Prediction'])
-    plt.xlabel('Date', size=20)
-    plt.ylabel('Stock Price', size=20)
-    plt.title('Stock Price Prediction by Auto ARIMA', size=20)
-    plt.legend(['Model Training Data', 'Actual Data', 'Predicted Data'])
-    fname = f'./{message.from_user.id}/{nameModel}_{message.from_user.id}_{stock}_1.png'
     plt.savefig(fname)
     sendGraph(fname, message)
 
